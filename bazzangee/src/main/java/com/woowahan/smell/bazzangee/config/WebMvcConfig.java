@@ -1,16 +1,22 @@
 package com.woowahan.smell.bazzangee.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.navercorp.lucy.security.xss.servletfilter.XssEscapeServletFilter;
 import com.woowahan.smell.bazzangee.converter.LocalDateConverter;
 import com.woowahan.smell.bazzangee.converter.LocalDateTimeConverter;
 import com.woowahan.smell.bazzangee.filter.RequestBodyXSSFileter;
 import com.woowahan.smell.bazzangee.interceptor.BasicAuthInterceptor;
 import com.woowahan.smell.bazzangee.interceptor.CheckUriInterceptor;
+import com.woowahan.smell.bazzangee.security.HTMLCharacterEscapes;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.format.FormatterRegistry;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -22,6 +28,8 @@ import springfox.documentation.service.ApiInfo;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
+
+import java.util.List;
 
 @Configuration
 @EnableSwagger2
@@ -56,24 +64,43 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addViewController("/reviews/update").setViewName("/review/update");
     }
 
-    // Form data
-    @Bean
-    public FilterRegistrationBean getXssEscapeServletFilterRegistrationBean() {
-        FilterRegistrationBean registrationBean = new FilterRegistrationBean();
-        registrationBean.setFilter(new XssEscapeServletFilter());
-        registrationBean.setOrder(1);
-        registrationBean.addUrlPatterns("/api/reviews", "/chat"); //filter를 거칠 url patterns
-        return registrationBean;
+    @Override
+    public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+        converters.add(escapingConverter());
+
     }
 
-    // Request Body
     @Bean
-    public FilterRegistrationBean getRequestBodyXSSFileterRegistrationBean() {
-        FilterRegistrationBean registrationBean = new FilterRegistrationBean();
-        registrationBean.setFilter(new RequestBodyXSSFileter());
-        registrationBean.addUrlPatterns("/api/reviews/update", "/chat"); //filter를 거칠 url patterns
-        return registrationBean;
+    public HttpMessageConverter escapingConverter() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.getFactory().setCharacterEscapes(new HTMLCharacterEscapes());
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        MappingJackson2HttpMessageConverter escapingConverter =
+                new MappingJackson2HttpMessageConverter();
+        escapingConverter.setObjectMapper(objectMapper);
+
+        return escapingConverter;
     }
+
+
+//    @Bean
+//    public FilterRegistrationBean getXssEscapeServletFilterRegistrationBean() {
+//        FilterRegistrationBean registrationBean = new FilterRegistrationBean();
+//        registrationBean.setFilter(new XssEscapeServletFilter());
+//        registrationBean.setOrder(1);
+//        registrationBean.addUrlPatterns("/api/reviews", "/chat"); //filter를 거칠 url patterns
+//        return registrationBean;
+//    }
+//
+//    @Bean
+//    public FilterRegistrationBean getRequestBodyXSSFileterRegistrationBean() {
+//        FilterRegistrationBean registrationBean = new FilterRegistrationBean();
+//        registrationBean.setFilter(new RequestBodyXSSFileter());
+//        registrationBean.addUrlPatterns("/api/reviews/update", "/chat"); //filter를 거칠 url patterns
+//        return registrationBean;
+//    }
 
     @Bean
     public Docket api() {
